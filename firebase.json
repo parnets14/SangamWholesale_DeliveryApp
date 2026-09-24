@@ -1,0 +1,8 @@
+{
+  "react-native": {
+    "messaging_android_notification_channel_id": "orders",
+    "messaging_android_notification_color": "@color/white",
+    "messaging_android_headless_task_timeout": 60000,
+    "messaging_android_notification_delegation_enabled": false
+  }
+}

@@ -1,6 +1,8 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+// Firebase Cloud Messaging — reads google-services.json in this folder
+apply plugin: "com.google.gms.google-services"
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -117,3 +119,8 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+// react-native-vector-icons fonts are bundled by copying the .ttf files into
+// android/app/src/main/assets/fonts (done manually because the fonts.gradle
+// auto-copy task relies on the legacy variant API, which is unreliable under
+// AGP 9 with android.newDsl=false).

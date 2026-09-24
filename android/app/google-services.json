@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "322066573215",
+    "project_id": "sangamwholesale-3b1d6",
+    "storage_bucket": "sangamwholesale-3b1d6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:322066573215:android:8fa193a06d122eb84b7faa",
+        "android_client_info": {
+          "package_name": "com.deliveryapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCrZ1DR5s_5yEZfrEzsdKFDndVj4Brd3uw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

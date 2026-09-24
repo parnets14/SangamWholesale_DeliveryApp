@@ -1,0 +1,13 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Debug builds talk to the local dev backend over plain http.
+         Android blocks cleartext http by default, so allow it here.
+         This file only affects debug builds, not release. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:usesCleartextTraffic="true"
+        tools:targetApi="28"
+        tools:ignore="HardcodedDebugMode" />
+</manifest>
