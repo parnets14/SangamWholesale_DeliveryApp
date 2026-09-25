@@ -12,8 +12,8 @@
 //   Run once:  adb reverse tcp:5000 tcp:5000
 //   Then the phone's localhost:5000 tunnels to this PC's backend over USB.
 //   (No WiFi / LAN IP / firewall needed with adb reverse.)
-// PRODUCTION: switch back to 'http://localhost:5000'.
-export const HOST = 'http://localhost:5000';
+// PRODUCTION: switch back to 'https://sangamwholesale.com'.
+export const HOST = 'https://sangamwholesale.com';
 
 // Common API bases built from HOST.
 export const BASE_URL = `${HOST}/api`;

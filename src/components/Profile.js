@@ -12,15 +12,20 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
+  Dimensions,
+  Alert,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { launchImageLibrary } from 'react-native-image-picker';
 import axios from 'axios';
 import AppHeader from './ui/AppHeader';
 import { DRIVER_API, HOST } from '../config';
 import { colors, spacing, radius, shadow } from '../theme';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const docUrl = file => (file ? `${HOST}/driverDocs/${file}` : null);
 
@@ -34,7 +39,14 @@ const Profile = ({ navigation }) => {
   const [editOpen, setEditOpen] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // image viewer
+  const [viewerImage, setViewerImage] = useState(null);
+
+  // doc upload
+  const [uploadingDoc, setUploadingDoc] = useState(null);
 
   const fetchProfile = useCallback(async t => {
     try {
@@ -67,6 +79,7 @@ const Profile = ({ navigation }) => {
   const openEdit = () => {
     setName(driver?.name || '');
     setEmail(driver?.email || '');
+    setPhone(driver?.phone || '');
     setEditOpen(true);
   };
 
@@ -75,11 +88,19 @@ const Profile = ({ navigation }) => {
       ToastAndroid.show('Name is required', ToastAndroid.SHORT);
       return;
     }
+    if (phone && !/^\d{10}$/.test(phone.trim())) {
+      ToastAndroid.show('Enter a valid 10-digit phone number', ToastAndroid.SHORT);
+      return;
+    }
     setSaving(true);
     try {
+      const body = { name: name.trim(), email: email.trim() };
+      if (phone.trim() && phone.trim() !== driver?.phone) {
+        body.phone = phone.trim();
+      }
       const res = await axios.put(
         `${DRIVER_API}/me`,
-        { name: name.trim(), email: email.trim() },
+        body,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       if (res.data.success) {
@@ -98,6 +119,54 @@ const Profile = ({ navigation }) => {
     }
   };
 
+  const uploadDoc = async (docKey, label) => {
+    try {
+      const response = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
+      if (response.didCancel || !response.assets?.length) return;
+      const asset = response.assets[0];
+      setUploadingDoc(docKey);
+      const formData = new FormData();
+      formData.append(docKey, {
+        name: asset.fileName || `${docKey}.jpg`,
+        type: asset.type || 'image/jpeg',
+        uri: asset.uri,
+      });
+      console.log('[uploadDoc] uploading', docKey, 'to', `${DRIVER_API}/me/docs`);
+      const res = await axios.put(`${DRIVER_API}/me/docs`, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      if (res.data.success) {
+        setDriver(res.data.driver);
+        await AsyncStorage.setItem('user', JSON.stringify(res.data.driver));
+        ToastAndroid.show(`${label} updated successfully`, ToastAndroid.SHORT);
+      } else {
+        ToastAndroid.show(res.data.message || 'Upload failed', ToastAndroid.SHORT);
+      }
+    } catch (e) {
+      console.error('[uploadDoc] error:', e.response?.status, e.response?.data, e.message);
+      ToastAndroid.show(
+        e.response?.data?.message || e.message || 'Upload failed',
+        ToastAndroid.LONG,
+      );
+    } finally {
+      setUploadingDoc(null);
+    }
+  };
+
+  const confirmUploadDoc = (docKey, label) => {
+    Alert.alert(
+      `Update ${label}`,
+      'Choose a new photo from your gallery to replace the current document.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Choose Photo', onPress: () => uploadDoc(docKey, label) },
+      ],
+    );
+  };
+
   const initials = (driver?.name || 'D P')
     .split(' ')
     .map(w => w[0])
@@ -106,10 +175,10 @@ const Profile = ({ navigation }) => {
     .toUpperCase();
 
   const docs = [
-    { label: 'Aadhaar Front', file: driver?.aadharFront },
-    { label: 'Aadhaar Back', file: driver?.aadharBack },
-    { label: 'PAN Card', file: driver?.panImage },
-    { label: 'Driving License', file: driver?.dlImage },
+    { key: 'aadharFront', label: 'Aadhaar Front', file: driver?.aadharFront },
+    { key: 'aadharBack', label: 'Aadhaar Back', file: driver?.aadharBack },
+    { key: 'panImage', label: 'PAN Card', file: driver?.panImage },
+    { key: 'dlImage', label: 'Driving License', file: driver?.dlImage },
   ];
 
   if (loading) {
@@ -177,26 +246,75 @@ const Profile = ({ navigation }) => {
         {/* Documents */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>KYC Documents</Text>
-          {docs.every(d => !d.file) ? (
-            <Text style={styles.noDocs}>No documents uploaded.</Text>
-          ) : (
-            <View style={styles.docGrid}>
-              {docs.map(d => (
-                <View key={d.label} style={styles.docItem}>
-                  <Text style={styles.docLabel}>{d.label}</Text>
-                  {d.file ? (
-                    <Image source={{ uri: docUrl(d.file) }} style={styles.docImg} />
+          {docs.map(d => (
+            <View key={d.label} style={styles.docRow}>
+              <View style={styles.docRowHeader}>
+                <Text style={styles.docLabel}>{d.label}</Text>
+                <TouchableOpacity
+                  style={styles.docEditBtn}
+                  onPress={() => confirmUploadDoc(d.key, d.label)}
+                  disabled={uploadingDoc === d.key}>
+                  {uploadingDoc === d.key ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
                   ) : (
-                    <View style={[styles.docImg, styles.docFallback]}>
-                      <Text style={styles.docFallbackText}>Not uploaded</Text>
-                    </View>
+                    <>
+                      <MaterialIcons name="edit" size={14} color={colors.primary} />
+                      <Text style={styles.docEditText}>Update</Text>
+                    </>
                   )}
-                </View>
-              ))}
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => d.file ? setViewerImage(docUrl(d.file)) : null}
+                disabled={!d.file}>
+                {d.file ? (
+                  <Image
+                    source={{ uri: docUrl(d.file) }}
+                    style={styles.docImg}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={[styles.docImg, styles.docFallback]}>
+                    <MaterialIcons name="cloud-upload" size={28} color={colors.textMuted} />
+                    <Text style={styles.docFallbackText}>Not uploaded</Text>
+                    <TouchableOpacity
+                      style={styles.uploadNowBtn}
+                      onPress={() => uploadDoc(d.key, d.label)}>
+                      <Text style={styles.uploadNowText}>Upload Now</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </TouchableOpacity>
+              {d.file && (
+                <Text style={styles.tapHint}>Tap image to view full size</Text>
+              )}
             </View>
-          )}
+          ))}
         </View>
       </ScrollView>
+
+      {/* Full-screen image viewer */}
+      <Modal
+        visible={!!viewerImage}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setViewerImage(null)}>
+        <View style={styles.viewerOverlay}>
+          <TouchableOpacity
+            style={styles.viewerClose}
+            onPress={() => setViewerImage(null)}>
+            <MaterialIcons name="close" size={28} color="#fff" />
+          </TouchableOpacity>
+          {viewerImage && (
+            <Image
+              source={{ uri: viewerImage }}
+              style={styles.viewerImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
 
       {/* Edit modal */}
       <Modal visible={editOpen} transparent animationType="slide" onRequestClose={() => setEditOpen(false)}>
@@ -218,6 +336,17 @@ const Profile = ({ navigation }) => {
               onChangeText={setName}
               placeholder="Your name"
               placeholderTextColor={colors.textMuted}
+            />
+
+            <Text style={styles.inputLabel}>Phone Number</Text>
+            <TextInput
+              style={styles.input}
+              value={phone}
+              onChangeText={t => setPhone(t.replace(/[^0-9]/g, ''))}
+              placeholder="10-digit number"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="number-pad"
+              maxLength={10}
             />
 
             <Text style={styles.inputLabel}>Email</Text>
@@ -308,12 +437,31 @@ const styles = StyleSheet.create({
   detailLabel: { fontSize: 12, color: colors.textMuted },
   detailValue: { fontSize: 15, color: colors.text, fontWeight: '500', marginTop: 1 },
 
-  docGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  docItem: { width: '48%', marginBottom: spacing.md },
-  docLabel: { fontSize: 12, color: colors.textMuted, marginBottom: 4 },
+  docRow: {
+    marginBottom: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingBottom: spacing.md,
+  },
+  docRowHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  docLabel: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
+  docEditBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary + '15',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+  },
+  docEditText: { fontSize: 12, color: colors.primary, fontWeight: '600', marginLeft: 4 },
   docImg: {
     width: '100%',
-    height: 90,
+    height: 180,
     borderRadius: radius.md,
     backgroundColor: colors.background,
   },
@@ -323,9 +471,38 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderStyle: 'dashed',
+    gap: spacing.sm,
   },
-  docFallbackText: { fontSize: 11, color: colors.textMuted },
+  docFallbackText: { fontSize: 13, color: colors.textMuted },
+  uploadNowBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 8,
+    borderRadius: radius.md,
+    marginTop: spacing.xs,
+  },
+  uploadNowText: { color: colors.textInverse, fontSize: 13, fontWeight: '700' },
+  tapHint: { fontSize: 11, color: colors.textMuted, marginTop: 4, textAlign: 'center' },
   noDocs: { fontSize: 13, color: colors.textMuted, fontStyle: 'italic' },
+
+  // Full-screen viewer
+  viewerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  viewerClose: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    padding: spacing.sm,
+  },
+  viewerImage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT * 0.8,
+  },
 
   modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
   modalCard: {

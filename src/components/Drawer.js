@@ -77,7 +77,7 @@ const MyDrawer = () => {
           <Text style={styles.userName}>{user.name || 'User Name'}</Text>
           {!!user.driverId && <Text style={styles.userMeta}>ID: {user.driverId}</Text>}
           <Text style={styles.userMeta}>{user.email || 'user@example.com'}</Text>
-          <Text style={styles.userMeta}>{user.mobile || '+91 —'}</Text>
+          <Text style={styles.userMeta}>{user.mobile || user.phone ? `+91 ${user.mobile || user.phone}` : '+91 —'}</Text>
         </LinearGradient>
 
         <View style={styles.menu}>

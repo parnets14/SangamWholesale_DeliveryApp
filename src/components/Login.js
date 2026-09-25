@@ -13,6 +13,7 @@ import {
   ToastAndroid,
   Alert,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import axios from 'axios';
@@ -120,83 +121,90 @@ function Login({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'android' ? 0 : 0}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.content}>
-            <Image style={styles.logo} source={require('../assets/Sangam-logo.png')} resizeMode="contain" />
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Login with your mobile number</Text>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View>
+              <Image style={styles.logo} source={require('../assets/Sangam-logo.png')} resizeMode="contain" />
+              <Text style={styles.title}>Welcome Back</Text>
+              <Text style={styles.subtitle}>Login with your mobile number</Text>
 
-            <View style={styles.card}>
-              <Text style={styles.label}>Mobile Number</Text>
-              <View style={styles.inputRow}>
-                <View style={styles.ccBox}>
-                  <Text style={styles.ccText}>+91</Text>
+              <View style={styles.card}>
+                <Text style={styles.label}>Mobile Number</Text>
+                <View style={styles.inputRow}>
+                  <View style={styles.ccBox}>
+                    <Text style={styles.ccText}>+91</Text>
+                  </View>
+                  <TextInput
+                    placeholder="10-digit number"
+                    style={styles.input}
+                    placeholderTextColor={colors.textMuted}
+                    value={phoneNumber}
+                    onChangeText={t => setPhoneNumber(t.replace(/[^0-9]/g, ''))}
+                    keyboardType="number-pad"
+                    maxLength={10}
+                    editable={!isOtpSent}
+                  />
                 </View>
-                <TextInput
-                  placeholder="10-digit number"
-                  style={styles.input}
-                  placeholderTextColor={colors.textMuted}
-                  value={phoneNumber}
-                  onChangeText={t => setPhoneNumber(t.replace(/[^0-9]/g, ''))}
-                  keyboardType="number-pad"
-                  maxLength={10}
-                  editable={!isOtpSent}
-                />
+
+                {isOtpSent && (
+                  <>
+                    <Text style={[styles.label, { marginTop: spacing.lg }]}>Enter OTP</Text>
+                    <View style={styles.inputRow}>
+                      <MaterialIcons name="lock-outline" size={20} color={colors.textMuted} style={{ marginLeft: spacing.md }} />
+                      <TextInput
+                        placeholder="6-digit OTP"
+                        style={styles.input}
+                        placeholderTextColor={colors.textMuted}
+                        value={otp}
+                        onChangeText={t => setOtp(t.replace(/[^0-9]/g, ''))}
+                        keyboardType="number-pad"
+                        maxLength={6}
+                      />
+                    </View>
+                    <Text style={styles.otpNote}>OTP sent to +91 {phoneNumber}</Text>
+                  </>
+                )}
+
+                <TouchableOpacity
+                  style={styles.primaryBtn}
+                  onPress={isOtpSent ? verifyOtp : requestOtp}
+                  disabled={loading}
+                  activeOpacity={0.9}
+                >
+                  {loading ? (
+                    <ActivityIndicator color={colors.textInverse} />
+                  ) : (
+                    <Text style={styles.primaryBtnText}>{isOtpSent ? 'Verify & Login' : 'Get OTP'}</Text>
+                  )}
+                </TouchableOpacity>
+
+                {isOtpSent &&
+                  (countdown > 0 ? (
+                    <Text style={styles.resendText}>Resend OTP in {countdown}s</Text>
+                  ) : (
+                    <TouchableOpacity onPress={requestOtp}>
+                      <Text style={styles.resendActive}>Resend OTP</Text>
+                    </TouchableOpacity>
+                  ))}
               </View>
 
-              {isOtpSent && (
-                <>
-                  <Text style={[styles.label, { marginTop: spacing.lg }]}>Enter OTP</Text>
-                  <View style={styles.inputRow}>
-                    <MaterialIcons name="lock-outline" size={20} color={colors.textMuted} style={{ marginLeft: spacing.md }} />
-                    <TextInput
-                      placeholder="6-digit OTP"
-                      style={styles.input}
-                      placeholderTextColor={colors.textMuted}
-                      value={otp}
-                      onChangeText={t => setOtp(t.replace(/[^0-9]/g, ''))}
-                      keyboardType="number-pad"
-                      maxLength={6}
-                    />
-                  </View>
-                  <Text style={styles.otpNote}>OTP sent to +91 {phoneNumber}</Text>
-                </>
-              )}
-
-              <TouchableOpacity
-                style={styles.primaryBtn}
-                onPress={isOtpSent ? verifyOtp : requestOtp}
-                disabled={loading}
-                activeOpacity={0.9}
-              >
-                {loading ? (
-                  <ActivityIndicator color={colors.textInverse} />
-                ) : (
-                  <Text style={styles.primaryBtnText}>{isOtpSent ? 'Verify & Login' : 'Get OTP'}</Text>
-                )}
-              </TouchableOpacity>
-
-              {isOtpSent &&
-                (countdown > 0 ? (
-                  <Text style={styles.resendText}>Resend OTP in {countdown}s</Text>
-                ) : (
-                  <TouchableOpacity onPress={requestOtp}>
-                    <Text style={styles.resendActive}>Resend OTP</Text>
-                  </TouchableOpacity>
-                ))}
+              <View style={styles.footer}>
+                <Text style={styles.footerText}>Don't have an account?</Text>
+                <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+                  <Text style={styles.registerLink}> Register</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>Don't have an account?</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-                <Text style={styles.registerLink}> Register</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </TouchableWithoutFeedback>
+          </TouchableWithoutFeedback>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -204,7 +212,7 @@ function Login({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  content: { flex: 1, paddingHorizontal: spacing.lg, justifyContent: 'center' },
+  content: { flexGrow: 1, paddingHorizontal: spacing.lg, paddingVertical: spacing.xl, justifyContent: 'center' },
   logo: { width: 200, height: 90, alignSelf: 'center', marginBottom: spacing.lg },
   title: { fontSize: 26, fontWeight: '700', color: colors.text, textAlign: 'center' },
   subtitle: { fontSize: 14, color: colors.textMuted, textAlign: 'center', marginTop: 4, marginBottom: spacing.xl },
