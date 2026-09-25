@@ -9,12 +9,13 @@ import {
   ToastAndroid,
   ActivityIndicator,
   RefreshControl,
+  Animated,
 } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'react-native-linear-gradient';
+import { LinearGradient } from 'react-native-linear-gradient'; // kept for other screens
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import AppHeader from './ui/AppHeader';
 import { DELIVERY_API, HOST } from '../config';
@@ -45,6 +46,67 @@ const resolveImage = raw => {
   if (/^https?:\/\//.test(raw)) return raw;
   return `${HOST}${raw.startsWith('/') ? '' : '/'}${raw}`;
 };
+
+// ─── Animated sliding tab bar (single row, equal-width tabs) ─────────────────
+const SlidingTabBar = ({ tabs, activeKey, counts, onSelect }) => {
+  const activeIndex = tabs.findIndex(t => t.key === activeKey);
+  const tabCount = tabs.length;
+
+  // indicatorPos animates from 0..1 representing the tab index fraction
+  const indicatorPos = useRef(new Animated.Value(activeIndex)).current;
+
+  useEffect(() => {
+    Animated.spring(indicatorPos, {
+      toValue: activeIndex,
+      useNativeDriver: false,
+      damping: 20,
+      stiffness: 200,
+      mass: 0.8,
+    }).start();
+  }, [activeIndex, indicatorPos]);
+
+  return (
+    <View style={tabStyles.wrapper}>
+      <View style={tabStyles.strip}>
+        {/* Sliding pill background */}
+        <Animated.View
+          style={[
+            tabStyles.slidingPill,
+            {
+              width: `${100 / tabCount}%`,
+              left: indicatorPos.interpolate({
+                inputRange: tabs.map((_, i) => i),
+                outputRange: tabs.map((_, i) => `${(100 / tabCount) * i}%`),
+              }),
+            },
+          ]}
+        />
+
+        {tabs.map(tab => {
+          const isActive = tab.key === activeKey;
+          const count = counts[tab.key] ?? 0;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              activeOpacity={0.8}
+              onPress={() => onSelect(tab.key)}
+              style={tabStyles.tab}>
+              <Text style={[tabStyles.label, isActive && tabStyles.labelActive]} numberOfLines={1}>
+                {tab.label}
+              </Text>
+              {count > 0 && (
+                <Text style={[tabStyles.count, isActive && tabStyles.countActive]}>
+                  ({count})
+                </Text>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+};
+// ─────────────────────────────────────────────────────────────────────────────
 
 const OrderList = ({ route }) => {
   const navigation = useNavigation();
@@ -267,32 +329,12 @@ const OrderList = ({ route }) => {
     <View style={styles.container}>
       <AppHeader title="Orders" onBack={() => navigation.goBack()} />
 
-      <View style={styles.tabContainer}>
-        {TABS.map(tab => (
-          <TouchableOpacity
-            key={tab.key}
-            style={styles.tabButton}
-            onPress={() => setActiveTab(tab.key)}
-            activeOpacity={0.9}>
-            <LinearGradient
-              colors={
-                activeTab === tab.key
-                  ? [colors.primary, colors.primaryDark]
-                  : ['#f0f1f3', '#f0f1f3']
-              }
-              style={styles.tabGradient}>
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === tab.key && styles.tabTextActive,
-                ]}>
-                {tab.label}
-                {counts[tab.key] > 0 ? ` (${counts[tab.key]})` : ''}
-              </Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <SlidingTabBar
+        tabs={TABS}
+        activeKey={activeTab}
+        counts={counts}
+        onSelect={setActiveTab}
+      />
 
       {loading ? (
         <View style={styles.center}>
@@ -330,21 +372,6 @@ const OrderList = ({ route }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  tabContainer: {
-    flexDirection: 'row',
-    padding: spacing.md,
-    backgroundColor: colors.card,
-    elevation: 2,
-  },
-  tabButton: { flex: 1, marginHorizontal: 4, borderRadius: radius.md, overflow: 'hidden' },
-  tabGradient: {
-    paddingVertical: 12,
-    paddingHorizontal: 6,
-    alignItems: 'center',
-    borderRadius: radius.md,
-  },
-  tabText: { fontSize: 13, fontWeight: '600', color: colors.text },
-  tabTextActive: { color: colors.textInverse },
   listContainer: { padding: spacing.lg, paddingBottom: spacing.xxl },
   card: {
     backgroundColor: colors.card,
@@ -391,6 +418,62 @@ const styles = StyleSheet.create({
   emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
   emptyText: { fontSize: 17, fontWeight: '600', color: colors.textMuted, marginTop: spacing.md },
   emptySubtext: { fontSize: 13, color: '#999', marginTop: 4, textAlign: 'center', paddingHorizontal: spacing.xl },
+});
+
+const tabStyles = StyleSheet.create({
+  wrapper: {
+    backgroundColor: colors.card,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+  },
+  strip: {
+    flexDirection: 'row',
+    backgroundColor: '#F0F1F3',
+    borderRadius: radius.xl,
+    padding: 4,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  // Animated sliding pill that sits behind the active tab label
+  slidingPill: {
+    position: 'absolute',
+    top: 4,
+    bottom: 4,
+    backgroundColor: colors.primary,
+    borderRadius: radius.lg,
+    zIndex: 0,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    zIndex: 1,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textMuted,
+  },
+  labelActive: {
+    color: colors.textInverse,
+  },
+  count: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textMuted,
+    marginTop: 1,
+  },
+  countActive: {
+    color: colors.textInverse,
+  },
 });
 
 export default OrderList;
