@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "322066573215",
-    "project_id": "sangamwholesale-3b1d6",
-    "storage_bucket": "sangamwholesale-3b1d6.firebasestorage.app"
+    "project_number": "943309300897",
+    "project_id": "sangamdeliveryapp",
+    "storage_bucket": "sangamdeliveryapp.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:322066573215:android:8fa193a06d122eb84b7faa",
+        "mobilesdk_app_id": "1:943309300897:android:95f94634975db1c104bce0",
         "android_client_info": {
-          "package_name": "com.deliveryapp"
+          "package_name": "com.sangamdeliveryapp"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCrZ1DR5s_5yEZfrEzsdKFDndVj4Brd3uw"
+          "current_key": "AIzaSyDfVVLzAsr2g0NLjLvrqlMiHVY-z4wyDMk"
         }
       ],
       "services": {
